@@ -25,7 +25,7 @@
 #include "QMCWaveFunctions/WaveFunctionComponent.h"
 #include "QMCWaveFunctions/SPOSet.h"
 #include "Utilities/NewTimer.h"
-#include "QMCWaveFunctions/DelayedUpdate.h"
+#include "QMCWaveFunctions/DelayedUpdateRef.h"
 #if defined(ENABLE_CUDA)
 #include "QMCWaveFunctions/DelayedUpdateCUDA.h"
 #endif
@@ -34,7 +34,7 @@ namespace miniqmcreference
 {
 using namespace qmcplusplus;
 
-template<typename DU_TYPE = DelayedUpdate<QMCTraits::ValueType, QMCTraits::QTFull::ValueType>>
+template<typename DU_TYPE = DelayedUpdateRef<QMCTraits::ValueType, QMCTraits::QTFull::ValueType>>
 class DiracDeterminantRef : public WaveFunctionComponent
 {
 public:

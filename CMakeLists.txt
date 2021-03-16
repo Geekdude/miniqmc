@@ -20,6 +20,21 @@ SET(QMCPACK_VERSION_PATCH 0)
 SET(QMCPACK_VERSION "${QMCPACK_VERSION_MAJOR}.${QMCPACK_VERSION_MINOR}.${QMCPACK_VERSION_PATCH}")
 
 ######################################################################
+# FPGA Libraries
+######################################################################
+# set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+set(XILINX_VIVADO "/tools/Xilinx/Vivado/2020.2")
+set(XILINX_VITIS "/tools/Xilinx/Vitis/2020.2")
+set(XILINX_XRT "/opt/xilinx/xrt")
+# include_directories(${CMAKE_SOURCE_DIR}/../Vitis_Libraries/blas/L1/include/hw)
+include_directories(${CMAKE_SOURCE_DIR}/../Vitis_Libraries/blas/L3/include/sw)
+include_directories(${XILINX_XRT}/include)
+# include_directories(${XILINX_VIVADO}/include)
+# include_directories(${XILINX_VITIS}/include)
+SET(QMC_UTIL_LIBS xrt_coreutil uuid)
+LINK_DIRECTORIES(${XILINX_XRT}/lib)
+
+######################################################################
 # CTest
 ######################################################################
 INCLUDE( "${miniqmc_SOURCE_DIR}/CMake/macros.cmake" )
@@ -77,13 +92,13 @@ SET(OHMMS_DIM 3 CACHE STRING "Select physical dimension")
 SET(OHMMS_INDEXTYPE int)
 SET(OHMMS_ORTHO 0)
 MESSAGE(STATUS "defining the float point precision")
-SET(OHMMS_PRECISION_FULL double)
+SET(OHMMS_PRECISION_FULL float)
 SET(QMC_MIXED_PRECISION 0 CACHE BOOL "Enable/disable mixed precision")
 IF(QMC_MIXED_PRECISION)
   SET(OHMMS_PRECISION float)
   SET(MIXED_PRECISION 1)
 ELSE(QMC_MIXED_PRECISION)
-  SET(OHMMS_PRECISION double)
+  SET(OHMMS_PRECISION float)
 ENDIF(QMC_MIXED_PRECISION)
 MESSAGE("   Base precision = ${OHMMS_PRECISION}")
 MESSAGE("   Full precision = ${OHMMS_PRECISION_FULL}")
@@ -155,7 +170,7 @@ ENDIF()
 ######################################################
 #COMPILER choose one of the cmake files to customize the compiler options
 #If nothing is chosen, default settings by cmake will  be used.
-#If the automatic detection does not work, comment out everything 
+#If the automatic detection does not work, comment out everything
 #upto COMPILER MANUAL SELECTION and use one of the customized cmake file.
 ######################################################
 INCLUDE(${CMAKE_ROOT}/Modules/CheckCXXCompilerFlag.cmake)
@@ -255,7 +270,7 @@ ELSE(CMAKE_TOOLCHAIN_FILE)
   ENDIF()
 
   # requires C++11 standard
-  SET(CMAKE_CXX_STANDARD 11)
+  SET(CMAKE_CXX_STANDARD 14)
   SET(CMAKE_CXX_STANDARD_REQUIRED ON)
   SET(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -270,7 +285,7 @@ ENDIF(ENABLE_GCOV)
 IF (BUILD_AFQMC AND NOT APPLE)
   LINK_LIBRARIES("rt")
 ENDIF()
-  
+
 #-------------------------------------------------------------------
 #  check MPI installation
 #-------------------------------------------------------------------
@@ -395,7 +410,7 @@ ENDIF()
 SET(QMC_UTIL_LIBS ${QMC_UTIL_LIBS} ${FORTRAN_LIBRARIES})
 
 #find_package(ZLIB)
-   
+
 #set(HDF5_USE_STATIC_LIBRARIES off)
 #if(QMC_BUILD_STATIC)
 #  set(HDF5_USE_STATIC_LIBRARIES on)

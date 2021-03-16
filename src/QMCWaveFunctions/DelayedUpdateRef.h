@@ -9,10 +9,8 @@
 // File created by: Ye Luo, yeluo@anl.gov, Argonne National Laboratory
 //////////////////////////////////////////////////////////////////////////////////////
 
-#ifndef QMCPLUSPLUS_DELAYED_UPDATE_H
-#define QMCPLUSPLUS_DELAYED_UPDATE_H
-
-#define USE_FPGA
+#ifndef QMCPLUSPLUS_DELAYED_UPDATE_REF_H
+#define QMCPLUSPLUS_DELAYED_UPDATE_REF_H
 
 #include "config.h"
 #include <Numerics/OhmmsPETE/OhmmsVector.h>
@@ -22,14 +20,6 @@
 #include "Numerics/BlasThreadingEnv.h"
 #include "xf_blas.hpp"
 
-#define XF_CHECK(status, call)                                             \
-    status = call;                                              \
-    if (status != XFBLAS_STATUS_SUCCESS) {                           \
-      printf("%s:%d Error calling " #call ", error code is: %d\n",  \
-              __FILE__,__LINE__, status);                            \
-      exit(1);                                           \
-    }
-
 namespace qmcplusplus
 {
 /** implements delayed update on CPU using BLAS
@@ -37,7 +27,7 @@ namespace qmcplusplus
  * @tparam T_FP high precision for matrix inversion, T_FP >= T
  */
 template<typename T, typename T_FP>
-class DelayedUpdate
+class DelayedUpdateRef
 {
   /// define real type
   using real_type = typename scalar_traits<T>::real_type;
@@ -59,26 +49,10 @@ class DelayedUpdate
   int delay_count;
   /// matrix inversion engine
   DiracMatrix<T_FP, T> detEng;
-  /// FPGA Malloc
-  bool fpga_malloc;
-  /// Number of FPGA Kernels
-  int l_numKernel;
 
 public:
   /// default constructor
-  DelayedUpdate() : delay_count(0), fpga_malloc(false), l_numKernel(1) {
-    string l_xclbinFile("blas.xclbin");
-    string l_configFile("config_info.dat");
-    xfblasEngine_t engineName = XFBLAS_ENGINE_GEMM;
-    xfblasStatus_t status;
-
-    XF_CHECK(status, xfblasCreate(l_xclbinFile.c_str(), l_configFile, engineName, l_numKernel));
-  }
-
-  /// default deconstructor
-  ~DelayedUpdate() {
-    xfblasDestroy(l_numKernel);
-  }
+  DelayedUpdateRef() : delay_count(0) {}
 
   /** resize the internal storage
    * @param norb number of electrons/orbitals
@@ -93,24 +67,6 @@ public:
     tempMat.resize(norb, delay);
     Binv.resize(delay, delay);
     delay_list.resize(delay);
-
-#ifdef USE_FPGA
-    xfblasStatus_t status;
-    if (fpga_malloc)
-    {
-      xfblasFree(V.data(), l_numKernel - 1);
-      xfblasFree(U.data(), l_numKernel - 1);
-      xfblasFree(Binv.data(), l_numKernel - 1);
-      xfblasFree(tempMat.data(), l_numKernel - 1);
-    }
-
-    XF_CHECK(status, xfblasMalloc(delay, norb, sizeof(*(V.data())), V.data(), norb, l_numKernel - 1));
-    XF_CHECK(status, xfblasMalloc(delay, norb, sizeof(*U.data()), U.data(), norb, l_numKernel - 1));
-    XF_CHECK(status, xfblasMalloc(delay, delay, sizeof(*Binv.data()), Binv.data(), delay, l_numKernel - 1));
-    XF_CHECK(status, xfblasMalloc(norb, delay, sizeof(*tempMat.data()), tempMat.data(), delay, l_numKernel - 1));
-
-    fpga_malloc = true;
-#endif
   }
 
   /** compute the inverse of the transpose of matrix A
@@ -209,35 +165,6 @@ public:
     const T czero(0);
     const int norb = Ainv.rows();
 
-    #ifdef USE_FPGA
-    xfblasStatus_t status;
-    const int lda_Binv     = Binv.cols();
-
-    XF_CHECK(status, xfblasMalloc(Ainv.rows(), Ainv.cols(), sizeof(*Ainv.data()), Ainv.data(), Ainv.cols(), l_numKernel - 1));
-    
-    XF_CHECK(status, xfblasSetMatrix(U.data(), l_numKernel - 1));
-    XF_CHECK(status, xfblasSetMatrix(Ainv.data(), l_numKernel - 1));
-    XF_CHECK(status, xfblasSetMatrix(tempMat.data(), l_numKernel - 1));
-    XF_CHECK(status, xfblasGemm(XFBLAS_OP_T, XFBLAS_OP_N, delay_count, norb, norb, cone, U.data(), norb, Ainv.data(), norb, czero, tempMat.data(), lda_Binv, l_numKernel - 1));
-    //              BxLAS::gemm(         'T',         'N',delay_count, norb, norb, cone, U.data(), norb, Ainv.data(), norb, czero, tempMat.data(), lda_Binv);
-    XF_CHECK(status, xfblasGetMatrix(tempMat.data(), l_numKernel - 1));
-
-    for (int i = 0; i < delay_count; i++)
-      tempMat(delay_list[i], i) -= cone;
-
-    XF_CHECK(status, xfblasSetMatrix(V.data(), l_numKernel - 1));
-    XF_CHECK(status, xfblasSetMatrix(Binv.data(), l_numKernel - 1));
-    XF_CHECK(status, xfblasGemm(XFBLAS_OP_N, XFBLAS_OP_N, norb, delay_count, delay_count, cone, V.data(), norb, Binv.data(), lda_Binv, czero, U.data(), norb, l_numKernel - 1));
-    //              BxLAS::gemm(         'N',         'N',norb, delay_count, delay_count, cone, V.data(), norb, Binv.data(), lda_Binv, czero, U.data(), norb);
-    XF_CHECK(status, xfblasGetMatrix(U.data(), l_numKernel - 1));
-
-    XF_CHECK(status, xfblasSetMatrix(tempMat.data(), l_numKernel - 1));
-    XF_CHECK(status, xfblasGemm(XFBLAS_OP_N, XFBLAS_OP_N, norb, norb, delay_count, -cone, U.data(), norb, tempMat.data(), lda_Binv, cone, Ainv.data(), norb, l_numKernel - 1));
-    //              BxLAS::gemm(         'N',         'N',norb, norb, delay_count, -cone, U.data(), norb, tempMat.data(), lda_Binv, cone, Ainv.data(), norb);
-    XF_CHECK(status, xfblasGetMatrix(Ainv.data(), l_numKernel - 1));
-
-    xfblasFree(Ainv.data(), l_numKernel - 1);
-    #else
     if (delay_count == 1)
     {
       // this is a special case invoking the Fahy's variant of Sherman-Morrison update.
@@ -302,7 +229,6 @@ public:
         }
       }
     }
-    #endif
     delay_count = 0;
   }
 };
