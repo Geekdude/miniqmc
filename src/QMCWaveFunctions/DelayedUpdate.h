@@ -111,18 +111,23 @@ public:
 
     printf("In Resize\n");
     fflush(stdout);
+
     XF_CHECK(status, xfblasMalloc(&d_V, delay, norb, sizeof(*V.data()), l_numKernel - 1));
     printf("Aloc V\n");
     fflush(stdout);
+
     XF_CHECK(status, xfblasMalloc(&d_U, delay, norb, sizeof(*U.data()), l_numKernel - 1));
     printf("Aloc U\n");
     fflush(stdout);
+
     XF_CHECK(status, xfblasMalloc(&d_Binv, delay, delay, sizeof(*Binv.data()), l_numKernel - 1));
     printf("Aloc Binv\n");
     fflush(stdout);
+
     XF_CHECK(status, xfblasMalloc(&d_tempMat, norb, delay, sizeof(*tempMat.data()), l_numKernel - 1));
     printf("Aloc tempMat\n");
     fflush(stdout);
+
     printf("Leaving Resize\n");
     fflush(stdout);
 
@@ -233,12 +238,14 @@ public:
     float *d_Ainv = nullptr;
 
     XF_CHECK(status, xfblasMalloc(&d_Ainv, Ainv.rows(), Ainv.cols(), sizeof(*Ainv.data()), l_numKernel - 1));
-    
+    printf("Aloc Binv\n");
+    fflush(stdout);
+
     XF_CHECK(status, xfblasSetMatrix(U.rows(), U.cols(), sizeof(*U.data()), U.data(), U.cols(), d_U, l_numKernel - 1));
     XF_CHECK(status, xfblasSetMatrix(Ainv.rows(), Ainv.cols(), sizeof(*Ainv.data()), Ainv.data(), Ainv.cols(), d_Ainv, l_numKernel - 1));
     XF_CHECK(status, xfblasSetMatrix(tempMat.rows(), tempMat.cols(), sizeof(*tempMat.data()), tempMat.data(), tempMat.cols(), d_tempMat, l_numKernel - 1));
     XF_CHECK(status, xfblasGemm(XFBLAS_OP_T, XFBLAS_OP_N, delay_count, norb, norb, cone, U.data(), norb, Ainv.data(), norb, czero, tempMat.data(), lda_Binv, l_numKernel - 1));
-    //              BxLAS::gemm(         'T',         'N',delay_count, norb, norb, cone, U.data(), norb, Ainv.data(), norb, czero, tempMat.data(), lda_Binv);
+    //               BLAS::gemm(         'T',         'N',delay_count, norb, norb, cone, U.data(), norb, Ainv.data(), norb, czero, tempMat.data(), lda_Binv);
     XF_CHECK(status, xfblasGetMatrix(tempMat.rows(), tempMat.cols(), sizeof(*tempMat.data()), d_tempMat, tempMat.data(), tempMat.cols(), l_numKernel - 1));
 
     for (int i = 0; i < delay_count; i++)
@@ -247,15 +254,18 @@ public:
     XF_CHECK(status, xfblasSetMatrix(V.rows(), V.cols(), sizeof(*V.data()), V.data(), V.cols(), d_V, l_numKernel - 1));
     XF_CHECK(status, xfblasSetMatrix(Binv.rows(), Binv.cols(), sizeof(*Binv.data()), Binv.data(), Binv.cols(), d_Binv, l_numKernel - 1));
     XF_CHECK(status, xfblasGemm(XFBLAS_OP_N, XFBLAS_OP_N, norb, delay_count, delay_count, cone, V.data(), norb, Binv.data(), lda_Binv, czero, U.data(), norb, l_numKernel - 1));
-    //              BxLAS::gemm(         'N',         'N',norb, delay_count, delay_count, cone, V.data(), norb, Binv.data(), lda_Binv, czero, U.data(), norb);
+    //               BLAS::gemm(         'N',         'N',norb, delay_count, delay_count, cone, V.data(), norb, Binv.data(), lda_Binv, czero, U.data(), norb);
     XF_CHECK(status, xfblasGetMatrix(U.rows(), U.cols(), sizeof(*U.data()), d_U, U.data(), U.cols(), l_numKernel - 1));
 
     XF_CHECK(status, xfblasSetMatrix(tempMat.rows(), tempMat.cols(), sizeof(*tempMat.data()), tempMat.data(), tempMat.cols(), d_tempMat, l_numKernel - 1));
     XF_CHECK(status, xfblasGemm(XFBLAS_OP_N, XFBLAS_OP_N, norb, norb, delay_count, -cone, U.data(), norb, tempMat.data(), lda_Binv, cone, Ainv.data(), norb, l_numKernel - 1));
-    //              BxLAS::gemm(         'N',         'N',norb, norb, delay_count, -cone, U.data(), norb, tempMat.data(), lda_Binv, cone, Ainv.data(), norb);
+    //               BLAS::gemm(         'N',         'N',norb, norb, delay_count, -cone, U.data(), norb, tempMat.data(), lda_Binv, cone, Ainv.data(), norb);
     XF_CHECK(status, xfblasGetMatrix(Ainv.rows(), Ainv.cols(), sizeof(*Ainv.data()), d_Ainv, Ainv.data(), Ainv.cols(), l_numKernel - 1));
 
-    xfblasFree(Ainv.data(), l_numKernel - 1);
+    xfblasFree(d_Ainv, l_numKernel - 1);
+    printf("Free Ainv\n");
+    fflush(stdout);
+
     #else
     if (delay_count == 1)
     {
